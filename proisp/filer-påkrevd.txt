@@ -1,0 +1,10 @@
+# ProISP – last opp innholdet av mappen web/
+#
+# Fra repo:  web/*
+# Til ProISP: public_html/astroclock/
+#
+astronomy.browser.min.js
+index.html
+main.js
+prophecies.js
+style.css

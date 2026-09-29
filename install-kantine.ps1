@@ -85,7 +85,7 @@ $startBat = Join-Path $InstallDir "start-kantine.bat"
 @"
 # Starter Astrologiklokke lokalt
 `$ErrorActionPreference = 'Stop'
-Set-Location -Path '$InstallDir'
+Set-Location -Path '$InstallDir\web'
 `$port = $Port
 Write-Host "Starter Astrologiklokke på http://localhost:`$port" -ForegroundColor Cyan
 Write-Host "Fødselshoroskop lagres i nettleseren (localStorage). Bruk Eksporter for JSON-backup."
