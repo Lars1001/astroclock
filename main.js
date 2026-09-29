@@ -80,6 +80,21 @@ const clearNatalsBtn = document.getElementById('clearNatalsBtn');
 const exportNatalsBtn = document.getElementById('exportNatalsBtn');
 const importNatalsBtn = document.getElementById('importNatalsBtn');
 const importNatalsFile = document.getElementById('importNatalsFile');
+const natalSaveStatus = document.getElementById('natalSaveStatus');
+const prophecyList = document.getElementById('prophecyList');
+const prophecyFilter = document.getElementById('prophecyFilter');
+const prophecyNearBanner = document.getElementById('prophecyNearBanner');
+const prophecyTabBtns = document.querySelectorAll('[data-prophecy-source]');
+let prophecySource = 'all';
+let lastProphecyRenderMs = 0;
+/** Behold åpne kort ved re-render */
+const expandedProphecies = new Set();
+/** Kort der aspekt-sammenligning er synlig */
+const comparedProphecies = new Set();
+const aspectCompareCache = new Map(); // id -> HTML/string result
+
+/** Planeter brukt til historisk/nåtid/fremtid-sammenligning (tregere legemer = mer «epoke») */
+const ASPECT_COMPARE_BODIES = ['Sun', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
 
 // ----------------- Transit/natal helpers -----------------
 const TRANSIT_BODIES = [
@@ -954,6 +969,7 @@ function update(dtMs) {
   if (advanced) {
     dateInput.value = toLocalDateTimeInputValue(virtualTime);
     generateSummary();
+    renderProphecies();
   }
 }
 
@@ -977,6 +993,8 @@ nowBtn.addEventListener('click', () => {
   virtualTime = new Date();
   dateInput.value = toLocalDateTimeInputValue(virtualTime);
   log('Tid satt til nå', 'info');
+  generateSummary();
+  renderProphecies(true);
 });
 
 // Profiler lagring (localStorage)
@@ -1041,13 +1059,22 @@ profileSelect.addEventListener('change', () => {
   addEvent(`Profil aktiv: ${p.name || 'Uten navn'}`,'Profil');
 });
 
-// Nataler lagring/lasting
+// Nataler lagring/lasting (localStorage – overlever omstart av nettleser/PC)
+const NATAL_STORAGE_KEY = 'astro_natals';
+
 function loadNatals() {
-  try { return JSON.parse(localStorage.getItem('astro_natals')||'[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(NATAL_STORAGE_KEY) || '[]'); } catch { return []; }
 }
-function saveNatals(list) { localStorage.setItem('astro_natals', JSON.stringify(list)); }
+function saveNatals(list) {
+  localStorage.setItem(NATAL_STORAGE_KEY, JSON.stringify(list));
+}
+function setNatalStatus(msg, ok = true) {
+  if (!natalSaveStatus) return;
+  natalSaveStatus.textContent = msg;
+  natalSaveStatus.style.color = ok ? '#86efac' : '#fca5a5';
+}
 function packNatal(i) {
-  return {
+  const base = {
     name: natalEls[i].name.value.trim(),
     date: natalEls[i].date.value || '',
     time: natalEls[i].unknown.checked ? null : (natalEls[i].time.value || null),
@@ -1055,8 +1082,25 @@ function packNatal(i) {
     place: natalEls[i].place.value.trim(),
     lat: natalEls[i].lat.value ? parseFloat(natalEls[i].lat.value) : null,
     lon: natalEls[i].lon.value ? parseFloat(natalEls[i].lon.value) : null,
-    tz: natalEls[i].tz.value.trim() || null
+    tz: natalEls[i].tz.value.trim() || null,
+    savedAt: new Date().toISOString()
   };
+  // Lagre også beregnet fødselshoroskop (planetlengder) når mulig
+  try {
+    const longs = computeNatalLongitudes(base);
+    if (longs) {
+      base.chart = longs;
+      base.chartLabel = Object.keys(longs)
+        .map((id) => {
+          const lon = longs[id];
+          const sign = ZODIAC[Math.floor(normalizeAngleDegrees(lon) / 30) % 12];
+          const name = TRANSIT_BODIES.find((b) => b.id === id)?.name || id;
+          return `${name}: ${lon.toFixed(1)}° ${sign?.name || ''}`;
+        })
+        .slice(0, 10);
+    }
+  } catch (_) { /* chart valgfritt */ }
+  return base;
 }
 function unpackNatal(i, n) {
   natalEls[i].name.value = n.name || '';
@@ -1070,41 +1114,70 @@ function unpackNatal(i, n) {
 }
 function refreshNatalsForm() {
   const list = loadNatals();
-  for (let i=0;i<3;i++) unpackNatal(i, list[i] || {});
+  for (let i = 0; i < 3; i++) unpackNatal(i, list[i] || {});
+  const named = list.filter((n) => n && (n.name || n.date));
+  if (named.length) {
+    const names = named.map((n) => n.name || n.date).join(', ');
+    setNatalStatus(`Lastet ${named.length} lagret(e) horoskop: ${names}`);
+  } else {
+    setNatalStatus('Ingen lagrede fødselshoroskop ennå.');
+  }
 }
 refreshNatalsForm();
 
-saveNatalsBtn.addEventListener('click', () => {
+function persistNatalsFromForm() {
   const list = [];
-  for (let i=0;i<3;i++) list.push(packNatal(i));
-  // Enkel validering
+  for (let i = 0; i < 3; i++) list.push(packNatal(i));
   for (const n of list) {
-    if (!n.name && !n.date && !n.place) continue; // tillat tomme rader
-    if (n.date && !/^\d{4}-\d{2}-\d{2}$/.test(n.date)) { addEvent(`Ugyldig dato: ${n.date}`, 'Validering'); return; }
-    if (n.time && !/^\d{2}:\d{2}$/.test(n.time)) { addEvent(`Ugyldig tid: ${n.time}`, 'Validering'); return; }
-    if ((n.lat!=null) !== (n.lon!=null)) { addEvent('Lat/Lon må angis sammen.', 'Validering'); return; }
+    if (!n.name && !n.date && !n.place) continue;
+    if (n.date && !/^\d{4}-\d{2}-\d{2}$/.test(n.date)) {
+      setNatalStatus(`Ugyldig dato: ${n.date}`, false);
+      addEvent(`Ugyldig dato: ${n.date}`, 'Validering');
+      return false;
+    }
+    if (n.time && !/^\d{2}:\d{2}$/.test(n.time)) {
+      setNatalStatus(`Ugyldig tid: ${n.time}`, false);
+      addEvent(`Ugyldig tid: ${n.time}`, 'Validering');
+      return false;
+    }
+    if ((n.lat != null) !== (n.lon != null)) {
+      setNatalStatus('Lat/Lon må angis sammen.', false);
+      addEvent('Lat/Lon må angis sammen.', 'Validering');
+      return false;
+    }
   }
   saveNatals(list);
-  addEvent('Nataler lagret', 'Natal');
+  const count = list.filter((n) => n.name || n.date).length;
+  setNatalStatus(count ? `Fødselshoroskop lagret (${count}) – huskes ved omstart.` : 'Tom liste lagret.');
+  addEvent(count ? `Fødselshoroskop lagret (${count})` : 'Nataler tømt/lagret tomt', 'Natal');
   generateSummary();
+  return true;
+}
+
+saveNatalsBtn.addEventListener('click', () => {
+  persistNatalsFromForm();
 });
 
 clearNatalsBtn.addEventListener('click', () => {
   saveNatals([]);
   refreshNatalsForm();
+  setNatalStatus('Alle fødselshoroskop slettet.');
   addEvent('Nataler tømt', 'Natal');
   generateSummary();
 });
 
 exportNatalsBtn.addEventListener('click', () => {
+  // Sørg for siste data før eksport
+  persistNatalsFromForm();
   const data = loadNatals();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'astro_natals.json';
+  a.download = `astro_fodselshoroskop_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  setNatalStatus('Eksportert JSON-fil (sikkerhetskopi).');
 });
 
 importNatalsBtn.addEventListener('click', () => {
@@ -1120,9 +1193,11 @@ importNatalsFile.addEventListener('change', async () => {
     if (!Array.isArray(parsed)) throw new Error('Ugyldig fil');
     saveNatals(parsed);
     refreshNatalsForm();
+    setNatalStatus(`Importert ${parsed.filter((n) => n && (n.name || n.date)).length} horoskop.`);
     addEvent('Nataler importert', 'Natal');
     generateSummary();
   } catch (e) {
+    setNatalStatus('Import feilet – sjekk JSON-filen.', false);
     addEvent('Import feilet', 'Natal');
   } finally {
     importNatalsFile.value = '';
@@ -1215,6 +1290,343 @@ function generateSummary() {
   analysisPanel.innerHTML = lines.join('');
 }
 generateSummary();
+renderProphecies(true);
+
+// ----------------- Profetier -----------------
+function parseProphecyDate(iso) {
+  if (!iso) return null;
+  const d = new Date(`${iso}T12:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function yearsBetween(a, b) {
+  return (a.getTime() - b.getTime()) / (365.25 * 24 * 3600 * 1000);
+}
+
+function prophecyRelation(p, now) {
+  const start = parseProphecyDate(p.date);
+  if (!start) return { relation: 'unknown', years: null, near: false };
+  const end = p.endDate ? parseProphecyDate(p.endDate) : null;
+  let years;
+  let relation;
+  if (end && now >= start && now <= end) {
+    relation = 'during';
+    years = 0;
+  } else if (now < start) {
+    relation = 'future';
+    years = yearsBetween(start, now);
+  } else {
+    relation = 'past';
+    years = yearsBetween(now, end || start);
+  }
+  const near = Math.abs(yearsBetween(start, now)) <= 5 ||
+    (end && now >= start && now <= end) ||
+    (end && Math.abs(yearsBetween(end, now)) <= 5);
+  return { relation, years, near, start, end };
+}
+
+function sourceLabel(id) {
+  if (id === 'minos') return 'Minos / Valdres';
+  if (id === 'vanga') return 'Baba Vanga';
+  if (id === 'nostradamus') return 'Nostradamus';
+  return id;
+}
+
+function bodyDisplayName(id) {
+  return TRANSIT_BODIES.find((b) => b.id === id)?.name || id;
+}
+
+/** Aspekter mellom trege legemer for en gitt dato */
+function findSkyAspectsAtDate(date) {
+  if (!date || typeof Astronomy === 'undefined') return [];
+  let longs;
+  try {
+    longs = computeGeoLongitudesForBodies(date);
+  } catch {
+    return [];
+  }
+  const bodies = ASPECT_COMPARE_BODIES.filter((id) => typeof longs[id] === 'number');
+  const results = [];
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i];
+      const b = bodies[j];
+      const hit = findAspectBetweenAngles(longs[a], longs[b]);
+      if (!hit) continue;
+      const pair = [a, b].sort();
+      results.push({
+        key: `${pair[0]}|${pair[1]}|${hit.aspect.key}`,
+        bodyA: pair[0],
+        bodyB: pair[1],
+        aspect: hit.aspect,
+        orb: hit.orb,
+        strength: hit.strength
+      });
+    }
+  }
+  results.sort((x, y) => x.orb - y.orb);
+  return results;
+}
+
+function compareAspectSets(historical, other) {
+  const histMap = new Map(historical.map((a) => [a.key, a]));
+  const matches = [];
+  for (const o of other) {
+    const h = histMap.get(o.key);
+    if (h) matches.push({ hist: h, other: o });
+  }
+  matches.sort((a, b) => a.other.orb - b.other.orb);
+  return matches;
+}
+
+/**
+ * Finn omtrentlige fremtidige datoer der et historisk aspekt gjentar seg.
+ * Stegvis søk (ikke eksakt ephemeris-root), ment som oversikt.
+ */
+function findAspectEchoes(histAspects, fromDate, yearsAhead = 12, stepDays = 20) {
+  if (!histAspects.length) return [];
+  const targets = histAspects.slice(0, 8); // sterkeste / tetteste orb
+  const found = []; // { key, date, orb, aspect, bodyA, bodyB }
+  const seenKeyMonth = new Set();
+  const end = new Date(fromDate.getTime() + yearsAhead * 365.25 * 24 * 3600 * 1000);
+  const cursor = new Date(fromDate.getTime());
+  cursor.setDate(cursor.getDate() + 1);
+
+  while (cursor <= end) {
+    const sky = findSkyAspectsAtDate(cursor);
+    const skyMap = new Map(sky.map((a) => [a.key, a]));
+    for (const t of targets) {
+      const hit = skyMap.get(t.key);
+      if (!hit) continue;
+      const ym = `${t.key}|${cursor.getFullYear()}-${cursor.getMonth()}`;
+      if (seenKeyMonth.has(ym)) continue;
+      seenKeyMonth.add(ym);
+      found.push({
+        key: t.key,
+        date: new Date(cursor.getTime()),
+        orb: hit.orb,
+        aspect: hit.aspect,
+        bodyA: hit.bodyA,
+        bodyB: hit.bodyB
+      });
+    }
+    cursor.setDate(cursor.getDate() + stepDays);
+  }
+  found.sort((a, b) => a.date - b.date);
+  return found.slice(0, 12);
+}
+
+function formatAspectLine(a) {
+  return `${bodyDisplayName(a.bodyA)} ${a.aspect.name} ${bodyDisplayName(a.bodyB)} (orb ${a.orb.toFixed(1)}°)`;
+}
+
+function buildAspectCompareHtml(prophecy) {
+  const histDate = parseProphecyDate(prophecy.date);
+  if (!histDate) {
+    return '<div class="pc-compare-empty">Mangler dato for sammenligning.</div>';
+  }
+  if (typeof Astronomy === 'undefined') {
+    return '<div class="pc-compare-empty">Astronomy Engine ikke lastet.</div>';
+  }
+
+  const now = virtualTime instanceof Date ? virtualTime : new Date();
+  const histAspects = findSkyAspectsAtDate(histDate);
+  const nowAspects = findSkyAspectsAtDate(now);
+  const matchesNow = compareAspectSets(histAspects, nowAspects);
+  const echoes = findAspectEchoes(histAspects, now, 10, 30);
+
+  const histLines = histAspects.slice(0, 6).map((a) =>
+    `<div class="pc-asp" style="border-left-color:${a.aspect.color}">${escapeHtml(formatAspectLine(a))}</div>`
+  ).join('') || '<div class="pc-compare-empty">Ingen trege aspekter innenfor orb.</div>';
+
+  const matchLines = matchesNow.length
+    ? matchesNow.map((m) =>
+        `<div class="pc-asp match" style="border-left-color:${m.other.aspect.color}">
+          ${escapeHtml(formatAspectLine(m.other))}
+          <span class="pc-asp-note">samme som ${escapeHtml(prophecy.dateLabel || prophecy.date)} (da orb ${m.hist.orb.toFixed(1)}°)</span>
+        </div>`
+      ).join('')
+    : '<div class="pc-compare-empty">Ingen identiske planetpar+aspekt aktive nå (innenfor orb).</div>';
+
+  const echoLines = echoes.length
+    ? echoes.map((e) => {
+        const iso = e.date.toISOString().slice(0, 10);
+        return `<div class="pc-asp future" style="border-left-color:${e.aspect.color}">
+          <button type="button" class="linkish" data-jump="${iso}">${escapeHtml(iso)}</button>
+          — ${escapeHtml(bodyDisplayName(e.bodyA))} ${escapeHtml(e.aspect.name)} ${escapeHtml(bodyDisplayName(e.bodyB))}
+          <span class="pc-asp-note">orb ${e.orb.toFixed(1)}°</span>
+        </div>`;
+      }).join('')
+    : '<div class="pc-compare-empty">Fant ingen tydelige gjentakelser i neste ~12 år (grovt søk).</div>';
+
+  return `
+    <div class="pc-compare">
+      <div class="pc-compare-title">Aspekt-sammenligning (Sol, Mars + ytre planeter)</div>
+      <div class="pc-compare-hint">Sammenligner himmelaspekter på hendelsesdato med klokkens nåtid og omtrentlige fremtidige «ekko». Dette er geometrisk likhet — ikke bevis for profeti.</div>
+      <div class="pc-compare-col">
+        <div class="pc-label">På hendelsen (${escapeHtml(prophecy.dateLabel || prophecy.date)})</div>
+        ${histLines}
+      </div>
+      <div class="pc-compare-col">
+        <div class="pc-label">Samme aspekter aktive nå (${escapeHtml(formatTime(now).slice(0, 10))})</div>
+        ${matchLines}
+      </div>
+      <div class="pc-compare-col">
+        <div class="pc-label">Omtrentlige fremtidige gjentakelser</div>
+        ${echoLines}
+      </div>
+    </div>
+  `;
+}
+
+function getCompareHtml(prophecy) {
+  const dayKey = Math.floor((virtualTime instanceof Date ? virtualTime : new Date()).getTime() / 86400000);
+  const cacheKey = `${prophecy.id}|${prophecy.date}|${dayKey}`;
+  const cached = aspectCompareCache.get(prophecy.id);
+  if (cached && cached.key === cacheKey) return cached.html;
+  const html = buildAspectCompareHtml(prophecy);
+  aspectCompareCache.set(prophecy.id, { key: cacheKey, html });
+  return html;
+}
+
+function renderProphecies(force = false) {
+  if (!prophecyList || typeof PROPHECIES === 'undefined') return;
+  const nowMs = performance.now();
+  if (!force && nowMs - lastProphecyRenderMs < 400) return;
+  lastProphecyRenderMs = nowMs;
+
+  const kindFilter = prophecyFilter ? prophecyFilter.value : 'all';
+  const now = virtualTime instanceof Date ? virtualTime : new Date();
+
+  const items = PROPHECIES
+    .filter((p) => prophecySource === 'all' || p.source === prophecySource)
+    .map((p) => ({ p, rel: prophecyRelation(p, now) }))
+    .filter(({ p, rel }) => {
+      if (kindFilter === 'all') return true;
+      if (kindFilter === 'near') return rel.near;
+      return p.kind === kindFilter;
+    })
+    .sort((a, b) => (a.rel.start?.getTime() || 0) - (b.rel.start?.getTime() || 0));
+
+  const nearOnes = items.filter((x) => x.rel.near);
+  if (prophecyNearBanner) {
+    if (nearOnes.length) {
+      prophecyNearBanner.style.display = 'block';
+      prophecyNearBanner.innerHTML =
+        `<strong>Nær klokketiden:</strong> ${nearOnes.map((x) => escapeHtml(x.p.title)).join(' · ')}`;
+    } else {
+      prophecyNearBanner.style.display = 'none';
+      prophecyNearBanner.innerHTML = '';
+    }
+  }
+
+  if (!items.length) {
+    prophecyList.innerHTML = '<div class="log-line info">Ingen treff for valgt filter.</div>';
+    return;
+  }
+
+  prophecyList.innerHTML = items.map(({ p, rel }) => {
+    const kindLabel = (typeof PROPHECY_KIND_LABEL !== 'undefined' && PROPHECY_KIND_LABEL[p.kind]) || p.kind;
+    const relText =
+      rel.relation === 'future' ? `om ca. ${Math.max(0, rel.years).toFixed(1)} år` :
+      rel.relation === 'during' ? 'pågår i tidsvinduet' :
+      rel.relation === 'past' ? `ca. ${Math.max(0, rel.years).toFixed(1)} år siden` : '';
+    const isExpanded = expandedProphecies.has(p.id);
+    const isCompared = comparedProphecies.has(p.id);
+    const cardClass = [
+      'prophecy-card',
+      rel.near ? 'near' : '',
+      rel.relation === 'future' ? 'future' : '',
+      rel.relation === 'past' ? 'past' : '',
+      isExpanded ? 'expanded' : '',
+      isCompared ? 'comparing' : ''
+    ].filter(Boolean).join(' ');
+    const tags = (p.tags || []).map((t) => escapeHtml(t)).join(' · ');
+    const detailBlock = p.detail
+      ? `<div class="pc-detail"${isExpanded ? '' : ' hidden'}>${escapeHtml(p.detail)}</div>`
+      : '';
+    const compareBlock = isCompared ? getCompareHtml(p) : '';
+    return `
+      <article class="${cardClass}" data-id="${escapeHtml(p.id)}">
+        <div class="pc-title">${escapeHtml(p.title)}</div>
+        <div class="pc-meta">
+          <span class="pc-badge ${escapeHtml(p.kind)}">${escapeHtml(kindLabel)}</span>
+          <span>${escapeHtml(sourceLabel(p.source))}</span>
+          <span>${escapeHtml(p.dateLabel || p.date || '')}</span>
+          ${relText ? `<span>${escapeHtml(relText)}</span>` : ''}
+        </div>
+        <div class="pc-summary">${escapeHtml(p.summary)}</div>
+        ${detailBlock}
+        ${compareBlock}
+        ${tags ? `<div class="pc-tags">${tags}</div>` : ''}
+        <div class="pc-actions">
+          <button type="button" data-jump="${escapeHtml(p.date)}">Gå til dato</button>
+          ${p.detail ? `<button type="button" data-expand="${escapeHtml(p.id)}">${isExpanded ? 'Mindre' : 'Mer info'}</button>` : ''}
+          <button type="button" data-compare="${escapeHtml(p.id)}">${isCompared ? 'Skjul aspekter' : 'Sammenlign aspekter'}</button>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+if (prophecyTabBtns && prophecyTabBtns.length) {
+  prophecyTabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      prophecySource = btn.getAttribute('data-prophecy-source') || 'all';
+      prophecyTabBtns.forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      renderProphecies(true);
+    });
+  });
+}
+
+if (prophecyFilter) {
+  prophecyFilter.addEventListener('change', () => renderProphecies(true));
+}
+
+if (prophecyList) {
+  prophecyList.addEventListener('click', (ev) => {
+    const jump = ev.target.closest('[data-jump]');
+    if (jump) {
+      ev.preventDefault();
+      const iso = jump.getAttribute('data-jump');
+      const dt = parseProphecyDate(iso);
+      if (dt) {
+        virtualTime = dt;
+        if (dateInput) dateInput.value = toLocalDateTimeInputValue(virtualTime);
+        log(`Profeti: tid satt til ${formatTime(virtualTime)}`, 'info');
+        aspectCompareCache.clear();
+        generateSummary();
+        renderProphecies(true);
+      }
+      return;
+    }
+    const expand = ev.target.closest('[data-expand]');
+    if (expand) {
+      ev.preventDefault();
+      const id = expand.getAttribute('data-expand');
+      if (expandedProphecies.has(id)) expandedProphecies.delete(id);
+      else expandedProphecies.add(id);
+      renderProphecies(true);
+      return;
+    }
+    const compare = ev.target.closest('[data-compare]');
+    if (compare) {
+      ev.preventDefault();
+      const id = compare.getAttribute('data-compare');
+      if (comparedProphecies.has(id)) {
+        comparedProphecies.delete(id);
+      } else {
+        comparedProphecies.add(id);
+        expandedProphecies.add(id);
+      }
+      renderProphecies(true);
+    }
+  });
+}
 
 playPauseBtn.addEventListener('click', () => {
   isRunning = !isRunning;
@@ -1272,6 +1684,8 @@ dateInput.addEventListener('change', () => {
   if (dt) {
     virtualTime = dt;
     log(`Tid endret til ${formatTime(virtualTime)}`, 'info');
+    generateSummary();
+    renderProphecies(true);
   }
 });
 

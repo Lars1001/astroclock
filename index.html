@@ -154,13 +154,15 @@
             <input type="text" id="n2_tz" placeholder="Europe/Oslo (kan overstyres)" />
           </div>
         </div>
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button id="saveNatalsBtn" type="button">Lagre nataler</button>
+        <div class="hint">Lagres i nettleseren (overlever omstart). Eksporter JSON for sikkerhetskopi eller flytting til annen PC.</div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button id="saveNatalsBtn" type="button">Lagre fødselshoroskop</button>
           <button id="clearNatalsBtn" type="button">Tøm</button>
           <button id="exportNatalsBtn" type="button">Eksporter</button>
           <button id="importNatalsBtn" type="button">Importer</button>
           <input id="importNatalsFile" type="file" accept="application/json" style="display:none;" />
         </div>
+        <div id="natalSaveStatus" class="hint" aria-live="polite"></div>
       </div>
 
       <div class="control-group">
@@ -187,6 +189,35 @@
           <input type="checkbox" id="viewEvents" checked /> Hendelser/Timeline
         </label>
         <div id="analysisPanel" class="log-container" style="min-height:80px; max-height:200px;"></div>
+      </div>
+
+      <div class="control-group prophecy-panel">
+        <h3>Profetier</h3>
+        <div class="hint">
+          Sammenlign klokkens virtuelle tid med omtalte syn/profetier:
+          Minos &amp; Valdres-kvinnen (1968), Baba Vanga og Nostradamus.
+          Bruk «Mer info» for tekst, og «Sammenlign aspekter» for å se hvilke
+          himmelaspekter som gikk da — og om de er aktive nå eller kommer igjen.
+        </div>
+        <div class="tab-row" role="tablist" aria-label="Profetikilder">
+          <button type="button" class="tab-btn active" data-prophecy-source="all" role="tab" aria-selected="true">Alle</button>
+          <button type="button" class="tab-btn" data-prophecy-source="minos" role="tab">Valdres / Minos</button>
+          <button type="button" class="tab-btn" data-prophecy-source="vanga" role="tab">Vanga</button>
+          <button type="button" class="tab-btn" data-prophecy-source="nostradamus" role="tab">Nostradamus</button>
+        </div>
+        <label for="prophecyFilter">Filter status</label>
+        <select id="prophecyFilter">
+          <option value="all">Alle statuser</option>
+          <option value="documented">Dokumentert</option>
+          <option value="claimed">Påstått oppfylt</option>
+          <option value="attributed">Tilskrevet</option>
+          <option value="interpretation">Tolkning</option>
+          <option value="open">Åpen / fremtid</option>
+          <option value="false">Motbevist</option>
+          <option value="near">Nær klokketiden (±5 år)</option>
+        </select>
+        <div id="prophecyNearBanner" class="prophecy-near-banner" style="display:none;"></div>
+        <div id="prophecyList" class="prophecy-list" aria-live="polite"></div>
       </div>
       <div class="control-group">
         <h3>Astrologiske hendelser</h3>
@@ -224,6 +255,7 @@
   </div>
 
   <script src="astronomy.browser.min.js"></script>
+  <script src="prophecies.js"></script>
   <script src="main.js"></script>
   </body>
   </html>

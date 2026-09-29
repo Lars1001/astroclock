@@ -89,6 +89,146 @@ button:hover { background: #21365f; }
 .natal { display: grid; gap: 6px; }
 hr { border: none; border-top: 1px solid #1c2842; margin: 10px 0; }
 
+/* Profetier */
+.prophecy-panel .tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+.tab-btn {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  background: #121c30;
+  color: #9fb7e7;
+}
+.tab-btn.active {
+  background: #2a4570;
+  color: #eef4ff;
+  border-color: #3d5f96;
+}
+.prophecy-near-banner {
+  background: #152238;
+  border: 1px solid #3a5a8c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #cfe0ff;
+  margin-bottom: 6px;
+}
+.prophecy-list {
+  background: #0d1424;
+  border: 1px solid #1c2842;
+  border-radius: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+.prophecy-card {
+  border: 1px solid #243552;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0f182a;
+  display: grid;
+  gap: 4px;
+}
+.prophecy-card.near {
+  border-color: #58ffa1;
+  box-shadow: 0 0 0 1px rgba(88, 255, 161, 0.15);
+}
+.prophecy-card.future { border-left: 3px solid #f59e0b; }
+.prophecy-card.past { border-left: 3px solid #64748b; }
+.prophecy-card .pc-title { font-weight: 700; font-size: 13px; color: #eef4ff; }
+.prophecy-card .pc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: #89a6e6;
+}
+.prophecy-card .pc-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #1a2b4d;
+  color: #cfe0ff;
+}
+.prophecy-card .pc-badge.documented { background: #1e3a2f; color: #86efac; }
+.prophecy-card .pc-badge.claimed { background: #1e3a4a; color: #7dd3fc; }
+.prophecy-card .pc-badge.attributed,
+.prophecy-card .pc-badge.interpretation { background: #2a2a1e; color: #fde68a; }
+.prophecy-card .pc-badge.false { background: #3a1e1e; color: #fca5a5; }
+.prophecy-card .pc-badge.open { background: #2a2418; color: #fdba74; }
+.prophecy-card .pc-summary { font-size: 12px; color: #b9c9ef; line-height: 1.4; }
+.prophecy-card .pc-detail {
+  font-size: 11px;
+  color: #8aa0c8;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.prophecy-card .pc-detail[hidden] { display: none !important; }
+.prophecy-card .pc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.prophecy-card .pc-actions button {
+  width: auto;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.prophecy-card .pc-tags { font-size: 10px; color: #6b82a8; }
+
+.pc-compare {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #0a1220;
+  border: 1px solid #2a4068;
+  display: grid;
+  gap: 8px;
+}
+.pc-compare-title { font-weight: 700; font-size: 12px; color: #e8f0ff; }
+.pc-compare-hint { font-size: 10px; color: #7a90b4; line-height: 1.35; }
+.pc-compare-col { display: grid; gap: 4px; }
+.pc-compare .pc-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7f9fd4;
+  margin-top: 2px;
+}
+.pc-asp {
+  border-left: 3px solid #58ffa1;
+  padding: 3px 0 3px 8px;
+  font-size: 11px;
+  color: #c5d4ef;
+  line-height: 1.35;
+}
+.pc-asp.match { background: rgba(34, 197, 94, 0.08); }
+.pc-asp.future { background: rgba(245, 158, 11, 0.08); }
+.pc-asp-note { display: block; color: #7a90b4; font-size: 10px; }
+.pc-compare-empty { font-size: 11px; color: #7a8db0; }
+button.linkish {
+  width: auto;
+  display: inline;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  color: #7dd3fc;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+button.linkish:hover { color: #bae6fd; background: none; }
+
 /* Små planet-ikoner i enden av visere (tegnes på canvas, CSS ikke nødvendig) */
 
 @media (max-width: 900px) {
