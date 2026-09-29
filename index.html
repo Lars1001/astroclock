@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astrologiklokke</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230b1220'/%3E%3Cpath d='M32 8l6 14 15 2-11 10 3 15-13-7-13 7 3-15-11-10 15-2z' fill='%23ffd27f'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div id="app">
+    <aside class="controls">
+      <h2>Astrologiklokke</h2>
+      <div class="control-group">
+        <label for="dateInput">Dato og tid</label>
+        <input id="dateInput" type="datetime-local" />
+        <button id="nowBtn">Sett til nå</button>
+      </div>
+
+      <div class="control-group">
+        <label for="centerSelect">Senterlegeme</label>
+        <select id="centerSelect">
+          <option value="Sun" selected>Solen</option>
+          <option value="Earth">Jorden</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="speedRange">Hastighet</label>
+        <input id="speedRange" type="range" min="-6" max="10" value="0" step="0.01" />
+        <div class="hint"><span id="speedLabel">1x (realtime)</span></div>
+        <div class="hint">Negativ = bakover i tid</div>
+      </div>
+
+      <div class="control-group">
+        <label>
+          <input id="toggleHouses" type="checkbox" checked /> Vis astrologihus (12)
+        </label>
+        <label>
+          <input id="toggleHouseNumbers" type="checkbox" checked /> Vis husnummer
+        </label>
+        <label>
+          <input id="toggleAsc" type="checkbox" /> Vis forenklet ascendant
+        </label>
+        <label>
+          <input id="toggleZodiac" type="checkbox" checked /> Vis stjernetegn
+        </label>
+        <label>
+          <input id="toggleZodiacSymbols" type="checkbox" checked /> Vis tegnsymboler
+        </label>
+        <label>
+          <input id="toggleAspects" type="checkbox" checked /> Vis aspekter (linjer)
+        </label>
+      </div>
+
+      <div class="control-group">
+        <h3>Personprofil</h3>
+        <label for="profileSelect">Aktiv profil</label>
+        <select id="profileSelect"></select>
+        <div class="hint">Velg eller opprett ny profil under.</div>
+        <label for="profName">Navn</label>
+        <input id="profName" type="text" placeholder="Navn" />
+        <label for="profDob">Fødselsdato/-tid</label>
+        <input id="profDob" type="datetime-local" />
+        <label for="profLat">Breddegrad (°)</label>
+        <input id="profLat" type="number" step="0.0001" placeholder="59.9139" />
+        <label for="profLon">Lengdegrad (°)</label>
+        <input id="profLon" type="number" step="0.0001" placeholder="10.7522" />
+        <div style="display:flex; gap:8px;">
+          <button id="saveProfileBtn" type="button">Lagre profil</button>
+          <button id="deleteProfileBtn" type="button">Slett profil</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Nataler (opptil 3)</h3>
+        <div class="hint">Søk sted for automatisk tidssone. Tid kan settes som ukjent.</div>
+        <div id="natalForms">
+          <div class="natal" data-index="0">
+            <label>Navn</label>
+            <input type="text" id="n0_name" placeholder="Navn/etikett" />
+            <label>Fødselsdato</label>
+            <input type="date" id="n0_date" />
+            <label>Fødselstid</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="time" id="n0_time" step="60" />
+              <label style="margin:0;">
+                <input type="checkbox" id="n0_unknown" /> Ukjent
+              </label>
+            </div>
+            <label>Sted</label>
+            <input type="text" id="n0_place" placeholder="Søk by/sted" />
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button type="button" id="n0_geocode">Søk</button>
+              <select id="n0_results"></select>
+            </div>
+            <label>Lat / Lon / Tidssone</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <input type="number" id="n0_lat" placeholder="Lat" step="0.0001" />
+              <input type="number" id="n0_lon" placeholder="Lon" step="0.0001" />
+            </div>
+            <input type="text" id="n0_tz" placeholder="Europe/Oslo (kan overstyres)" />
+          </div>
+          <hr/>
+          <div class="natal" data-index="1">
+            <label>Navn</label>
+            <input type="text" id="n1_name" placeholder="Navn/etikett" />
+            <label>Fødselsdato</label>
+            <input type="date" id="n1_date" />
+            <label>Fødselstid</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="time" id="n1_time" step="60" />
+              <label style="margin:0;">
+                <input type="checkbox" id="n1_unknown" /> Ukjent
+              </label>
+            </div>
+            <label>Sted</label>
+            <input type="text" id="n1_place" placeholder="Søk by/sted" />
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button type="button" id="n1_geocode">Søk</button>
+              <select id="n1_results"></select>
+            </div>
+            <label>Lat / Lon / Tidssone</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <input type="number" id="n1_lat" placeholder="Lat" step="0.0001" />
+              <input type="number" id="n1_lon" placeholder="Lon" step="0.0001" />
+            </div>
+            <input type="text" id="n1_tz" placeholder="Europe/Oslo (kan overstyres)" />
+          </div>
+          <hr/>
+          <div class="natal" data-index="2">
+            <label>Navn</label>
+            <input type="text" id="n2_name" placeholder="Navn/etikett" />
+            <label>Fødselsdato</label>
+            <input type="date" id="n2_date" />
+            <label>Fødselstid</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="time" id="n2_time" step="60" />
+              <label style="margin:0;">
+                <input type="checkbox" id="n2_unknown" /> Ukjent
+              </label>
+            </div>
+            <label>Sted</label>
+            <input type="text" id="n2_place" placeholder="Søk by/sted" />
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button type="button" id="n2_geocode">Søk</button>
+              <select id="n2_results"></select>
+            </div>
+            <label>Lat / Lon / Tidssone</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <input type="number" id="n2_lat" placeholder="Lat" step="0.0001" />
+              <input type="number" id="n2_lon" placeholder="Lon" step="0.0001" />
+            </div>
+            <input type="text" id="n2_tz" placeholder="Europe/Oslo (kan overstyres)" />
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button id="saveNatalsBtn" type="button">Lagre nataler</button>
+          <button id="clearNatalsBtn" type="button">Tøm</button>
+          <button id="exportNatalsBtn" type="button">Eksporter</button>
+          <button id="importNatalsBtn" type="button">Importer</button>
+          <input id="importNatalsFile" type="file" accept="application/json" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Tidsrom og visning</h3>
+        <label for="intervalSelect">Intervall</label>
+        <select id="intervalSelect">
+          <option value="day">Dag</option>
+          <option value="week">Uke</option>
+          <option value="month">Måned</option>
+          <option value="custom">Egendefinert</option>
+        </select>
+        <div id="customInterval" style="display:none; grid-template-columns:1fr 1fr; gap:8px;">
+          <input type="datetime-local" id="customStart" />
+          <input type="datetime-local" id="customEnd" />
+        </div>
+        <label>
+          <input type="checkbox" id="liveNow" /> Live nå (oppdater hvert minutt)
+        </label>
+        <div class="hint">Visning</div>
+        <label>
+          <input type="checkbox" id="viewSummary" checked /> Tekst/Info (topp 3–5 transitter)
+        </label>
+        <label>
+          <input type="checkbox" id="viewEvents" checked /> Hendelser/Timeline
+        </label>
+        <div id="analysisPanel" class="log-container" style="min-height:80px; max-height:200px;"></div>
+      </div>
+      <div class="control-group">
+        <h3>Astrologiske hendelser</h3>
+        <div class="hint">Viktige aspekter og tegnskifter logges her mens tiden går.</div>
+        <div id="eventList" class="event-list" aria-live="polite"></div>
+        <div style="display:flex; gap:8px;">
+          <button id="clearEventsBtn" type="button">Tøm hendelser</button>
+          <button id="exportEventsBtn" type="button">Eksporter</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <button id="playPauseBtn">Pause</button>
+        <button id="resetBtn">Nullstill visning</button>
+      </div>
+
+      <div class="legend">
+        <h3>Planeter</h3>
+        <ul id="planetLegend"></ul>
+      </div>
+
+      <div class="control-group log-panel">
+        <div class="log-toolbar">
+          <h3>Status og logg</h3>
+          <button id="clearLogBtn" type="button" title="Tøm logg">Tøm</button>
+        </div>
+        <div id="logContainer" class="log-container" aria-live="polite" aria-atomic="false"></div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <canvas id="canvas"></canvas>
+      <div id="tooltip" class="tooltip" style="display:none;"></div>
+    </main>
+  </div>
+
+  <script src="astronomy.browser.min.js"></script>
+  <script src="main.js"></script>
+  </body>
+  </html>
+
+

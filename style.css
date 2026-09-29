@@ -1,0 +1,101 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+body { background: radial-gradient(1200px 900px at 65% 40%, #0b1220, #05070d 60%, #02040a 100%); color: #dbe6ff; }
+
+#app { display: grid; grid-template-columns: 320px 1fr; height: 100%; }
+.controls { padding: 16px; border-right: 1px solid #1c2842; overflow: auto; }
+.controls h2 { margin: 0 0 12px; font-weight: 700; }
+.control-group { margin: 12px 0 18px; display: grid; gap: 6px; }
+label { display: inline-flex; align-items: center; gap: 8px; }
+input[type="datetime-local"], button, input[type="range"] { width: 100%; }
+button { background: #1a2b4d; color: #e9f1ff; border: 1px solid #27416f; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+button:hover { background: #21365f; }
+.hint { font-size: 12px; color: #9fb7e7; }
+.legend h3 { margin: 8px 0; }
+.legend ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.legend li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.legend .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+.stage { position: relative; }
+#canvas { width: 100%; height: 100%; display: block; }
+.tooltip {
+  position: absolute;
+  z-index: 20;
+  background: rgba(10, 16, 28, 0.94);
+  border: 1px solid #2a3f67;
+  border-radius: 10px;
+  padding: 8px 10px;
+  pointer-events: none;
+  font-size: 13px;
+  max-width: 280px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.12s ease;
+}
+.tooltip.rich { padding: 10px 12px; line-height: 1.35; }
+.tooltip .tt-title { font-weight: 700; font-size: 14px; color: #eef4ff; margin-bottom: 2px; }
+.tooltip .tt-meta { color: #9fb7e7; font-size: 12px; }
+.tooltip .tt-meaning { color: #c5d4ef; margin-top: 6px; font-size: 12px; }
+.tooltip .tt-section { margin-top: 8px; padding-top: 6px; border-top: 1px solid #243552; }
+.tooltip .tt-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #7f9fd4; margin-bottom: 4px; }
+.tooltip .tt-aspect {
+  border-left: 3px solid #58ffa1;
+  padding: 3px 0 3px 8px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.tooltip .tt-orb { color: #89a6e6; margin-left: 4px; font-size: 11px; }
+.tooltip .tt-muted { color: #7a8db0; font-size: 12px; }
+
+/* Loggpanel */
+.log-panel { gap: 10px; }
+.log-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#clearLogBtn { width: auto; padding: 6px 10px; }
+.log-container {
+  background: #0d1424;
+  border: 1px solid #1c2842;
+  border-radius: 8px;
+  min-height: 80px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.log-line { color: #b9c9ef; }
+.log-line .ts { color: #89a6e6; }
+.log-line.info { color: #b9c9ef; }
+.log-line.warn { color: #ffd27f; }
+.log-line.error { color: #ff9090; }
+
+/* Hendelsesliste */
+.event-list {
+  background: #0d1424;
+  border: 1px solid #1c2842;
+  border-radius: 8px;
+  min-height: 80px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.event-item { color: #d7e6ff; margin-bottom: 6px; }
+.event-item .ts { color: #8fb2ff; margin-right: 6px; }
+.event-item .tag { color: #58ffa1; margin-left: 6px; }
+
+.natal { display: grid; gap: 6px; }
+hr { border: none; border-top: 1px solid #1c2842; margin: 10px 0; }
+
+/* Små planet-ikoner i enden av visere (tegnes på canvas, CSS ikke nødvendig) */
+
+@media (max-width: 900px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .controls { border-right: none; border-bottom: 1px solid #1c2842; }
+}
+
+/* Ingen ekstra CSS nødvendig for zodiac; tegnes på canvas. */
+
+
